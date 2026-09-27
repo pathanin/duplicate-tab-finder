@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Store stage</title>
+<style>
+:root {
+    --bg: #f6efe6;
+    --blob: #efe2d1;
+    --ink: #2b2420;
+    --muted: #6f645b;
+    --em: #c2410c;
+    --brand: #9a5b2a;
+    --chrome: #e7e0d7;
+    --chrome-line: #d8cfc4;
+    --tab-ink: #5b524a;
+    --page: #ffffff;
+    --skel: #f1ebe4;
+    --omni: #f3eee8;
+}
+body.dark {
+    --bg: #161311;
+    --blob: #221c18;
+    --ink: #f1ebe4;
+    --muted: #a39a91;
+    --em: #ea7a4b;
+    --brand: #d4a373;
+    --chrome: #2a2521;
+    --chrome-line: #3a332e;
+    --tab-ink: #b9afa6;
+    --page: #1f1b18;
+    --skel: #2a2521;
+    --omni: #2a2521;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    overflow: hidden;
+}
+#canvas { position: relative; overflow: hidden; background: var(--bg); }
+.blob {
+    position: absolute;
+    border-radius: 50%;
+    background: var(--blob);
+}
+
+/* Copy */
+.copy { position: absolute; }
+.eyebrow { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; color: var(--brand); margin: 0 0 22px; }
+.eyebrow img { width: 30px; height: 30px; }
+h1 { margin: 0; font-size: 46px; line-height: 1.06; font-weight: 800; letter-spacing: -0.028em; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--em); }
+.sub { margin: 20px 0 0; font-size: 18px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
+
+/* Browser mock */
+.browser {
+    position: absolute;
+    border-radius: 12px 12px 0 0;
+    background: var(--page);
+    box-shadow: 0 30px 80px rgb(60 40 20 / .18), 0 0 0 1px rgb(60 40 20 / .08);
+    overflow: hidden;
+}
+body.dark .browser { box-shadow: 0 30px 80px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .06); }
+.tabstrip {
+    height: 42px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 10px 0 80px;
+    background: var(--chrome);
+    position: relative;
+}
+.lights { position: absolute; left: 16px; top: 15px; display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #e0605a; }
+.lights i:nth-child(2) { background: #e3b341; }
+.lights i:nth-child(3) { background: #5fb760; }
+.tab {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 200px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px;
+    font-size: 12px;
+    color: var(--tab-ink);
+    border-radius: 9px 9px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    position: relative;
+    transition: max-width .38s cubic-bezier(.3,0,.2,1), padding .38s, opacity .25s;
+}
+.tab:not(.active):not(:first-child)::before {
+    content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 1px; background: var(--chrome-line);
+}
+.tab.active { background: var(--page); color: var(--ink); }
+.tab.pinned { flex: 0 0 auto; width: 42px; justify-content: center; }
+.tab.pinned .t, .tab.pinned .x { display: none; }
+.tab .fav { position: relative; flex-shrink: 0; width: 16px; height: 16px; }
+.tab .fav img { width: 16px; height: 16px; display: block; border-radius: 3px; }
+.tab .fav::after {
+    content: "";
+    position: absolute;
+    right: -4px; top: -4px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--em);
+    border: 2px solid var(--chrome);
+    transform: scale(0);
+    transition: transform .3s cubic-bezier(.3,1.6,.5,1);
+}
+.tab.active .fav::after { border-color: var(--page); }
+.show-dupes .tab.dupe .fav::after { transform: scale(1); }
+.tab .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tab .x { opacity: .5; font-size: 13px; }
+.tab.entering, .tab.leaving { max-width: 0; padding-left: 0; padding-right: 0; opacity: 0; }
+
+.toolbar {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px;
+    background: var(--page);
+    border-bottom: 1px solid var(--chrome-line);
+}
+.nav { display: flex; gap: 14px; color: var(--tab-ink); opacity: .6; font-size: 16px; }
+.omni {
+    flex: 1;
+    height: 30px;
+    border-radius: 15px;
+    background: var(--omni);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    font-size: 13px;
+    color: var(--tab-ink);
+}
+.omni b { font-weight: 400; color: var(--ink); }
+.ext { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
+.ext.other { color: var(--tab-ink); opacity: .55; font-size: 16px; }
+.ext img { width: 20px; height: 20px; }
+.ext.on { background: var(--omni); }
+
+.page { padding: 34px 44px; }
+.skel { background: var(--skel); border-radius: 8px; height: 14px; margin-bottom: 14px; }
+
+.popup-wrap {
+    position: absolute;
+    top: 88px;
+    right: 12px;
+    transform-origin: top right;
+    transform: scale(var(--pscale, 1));
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 16px 44px rgb(40 25 10 / .24), 0 0 0 1px rgb(0 0 0 / .07);
+    transition: opacity .22s, transform .22s cubic-bezier(.2,.8,.2,1);
+}
+body.dark .popup-wrap { box-shadow: 0 16px 44px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .08); }
+.popup-wrap.closed { opacity: 0; transform: scale(calc(var(--pscale, 1) * .96)) translateY(-8px); }
+.popup-wrap iframe { display: block; width: 400px; border: 0; }
+
+/* Callouts */
+.callout {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+.callout span {
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 7px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.callout i { height: 2px; background: var(--ink); flex: 1; }
+.ring {
+    position: absolute;
+    border: 2.5px solid var(--em);
+    border-radius: 999px;
+    pointer-events: none;
+}
+
+/* Video */
+#cursor { position: absolute; left: 0; top: 0; width: 26px; height: 26px; opacity: 0; z-index: 50; pointer-events: none; }
+#cursor svg { display: block; filter: drop-shadow(0 2px 3px rgb(0 0 0 / .3)); }
+.click-ring { position: absolute; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; border: 3px solid var(--em); z-index: 49; opacity: 0; }
+#caption { position: absolute; left: 0; right: 0; top: 26px; height: 44px; }
+#caption .cap {
+    position: absolute; left: 0; right: 0; text-align: center;
+    font-size: 30px; font-weight: 800; letter-spacing: -0.02em;
+}
+#endcard {
+    position: absolute; inset: 0; z-index: 60;
+    background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    opacity: 0;
+}
+#endcard img { width: 132px; height: 132px; }
+#endcard h2 { margin: 18px 0 6px; font-size: 48px; font-weight: 800; letter-spacing: -0.03em; }
+#endcard p { margin: 0; font-size: 22px; color: var(--muted); }
+#endcard small { margin-top: 26px; font-size: 16px; color: var(--brand); font-weight: 700; }
+
+/* Small promo tile */
+.tile { position: absolute; inset: 0; padding: 34px 32px; display: flex; flex-direction: column; justify-content: space-between; }
+.tile-head { display: flex; align-items: center; gap: 16px; }
+.tile-head img { width: 76px; height: 76px; }
+.tile-head h2 { margin: 0; font-size: 27px; line-height: 1.05; font-weight: 800; letter-spacing: -0.025em; }
+.tile-head p { margin: 6px 0 0; font-size: 15px; color: var(--muted); }
+.minitabs { display: flex; gap: 6px; }
+.minitabs div {
+    flex: 1; display: flex; align-items: center; gap: 7px;
+    background: #fff; border-radius: 9px; padding: 9px 10px;
+    font-size: 13px; font-weight: 600; box-shadow: 0 1px 0 rgb(60 40 20 / .08), 0 4px 14px rgb(60 40 20 / .08);
+}
+.minitabs img { width: 16px; height: 16px; border-radius: 3px; }
+.minitabs .gone { opacity: .5; }
+.minitabs .gone span { text-decoration: line-through; }
+.minitabs .gone::after { content: "✕"; margin-left: auto; color: var(--em); font-weight: 800; }
+</style>
+</head>
+<body>
+<div id="canvas"></div>
+<script>
+const SHOTS = {
+    hero: {
+        size: [1280, 800], opts: { ignoreHash: 1 }, dupes: true,
+        title: 'Close duplicate tabs in <em>one&nbsp;click</em>.',
+        sub: 'Spots copies across every window, keeps the tab you’re on, and never touches pinned tabs.',
+    },
+    preview: {
+        size: [1280, 800], opts: { ignoreHash: 1 }, dupes: true, hover: 'ignoreTracking',
+        title: 'See what a rule catches <em>before</em> you turn it on.',
+        sub: 'Hover a rule to preview exactly which tabs it would close. Ignore #fragments and tracking params like utm_* when you want.',
+    },
+    smart: {
+        size: [1280, 800], opts: { ignoreHash: 1 }, callouts: true, layout: 'detail', copyWidth: 330,
+        title: 'Closes the copies. <em>Keeps</em> what matters.',
+        sub: 'Every tab is labelled keep or close, so nothing surprises you.',
+    },
+    undo: {
+        size: [1280, 800], opts: { ignoreHash: 1, ignoreTracking: 1 }, closeAll: true,
+        title: 'Changed your mind? <em>Undo.</em>',
+        sub: 'Closed tabs come right back, in the same window and position.',
+    },
+    dark: {
+        size: [1280, 800], opts: { ignoreHash: 1 }, dupes: true, dark: true,
+        title: 'Easy on the eyes. <em>Light</em> on your machine.',
+        sub: 'Dark mode built in. No background script — it uses nothing until you open it.',
+    },
+    marquee: {
+        size: [1400, 560], opts: { ignoreHash: 1 }, dupes: true, layout: 'marquee',
+        title: 'Close duplicate tabs in <em>one&nbsp;click</em>.',
+        sub: 'Preview before you close. Undo if you change your mind.',
+    },
+    tile: { size: [440, 280], layout: 'tile' },
+    video: { size: [1280, 720], opts: { ignoreHash: 1 }, layout: 'video' },
+};
+
+const name = new URLSearchParams(location.search).get('shot') || 'hero';
+const shot = SHOTS[name];
+const [W, H] = shot.size;
+const canvas = document.getElementById('canvas');
+canvas.style.width = W + 'px';
+canvas.style.height = H + 'px';
+document.body.classList.toggle('dark', !!shot.dark);
+
+const h = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const place = (el, css) => { Object.assign(el.style, css); canvas.append(el); return el; };
+const px = n => n + 'px';
+
+// ---------- layouts ----------
+let browser, strip, wrap, iframe, pwin, pdoc;
+const video = shot.layout === 'video';
+
+function buildBrowser({ left, top, width, height, pscale }) {
+    browser = place(h(`
+        <div class="browser">
+            <div class="tabstrip"><div class="lights"><i></i><i></i><i></i></div></div>
+            <div class="toolbar">
+                <div class="nav"><span>←</span><span>→</span><span>↻</span></div>
+                <div class="omni">🔒 <span><b>docs.dev</b>/guide</span></div>
+                <div class="ext other">⋯</div>
+                <div class="ext on" id="extBtn"><img src="/icons/icon48.png" alt=""></div>
+            </div>
+            <div class="page">
+                <div class="skel" style="width:46%;height:26px;margin-bottom:22px"></div>
+                <div class="skel" style="width:88%"></div><div class="skel" style="width:80%"></div>
+                <div class="skel" style="width:84%"></div><div class="skel" style="width:52%;margin-bottom:28px"></div>
+                <div class="skel" style="width:100%;height:150px;margin-bottom:28px"></div>
+                <div class="skel" style="width:86%"></div><div class="skel" style="width:74%"></div>
+                <div class="skel" style="width:81%"></div>
+            </div>
+            <div class="popup-wrap" style="--pscale:${pscale}"><iframe title="popup"></iframe></div>
+        </div>`), { left: px(left), top: px(top), width: px(width), height: px(height) });
+    strip = browser.querySelector('.tabstrip');
+    wrap = browser.querySelector('.popup-wrap');
+    iframe = wrap.querySelector('iframe');
+}
+
+function buildCopy({ left, width, eyebrow = true }) {
+    const copy = place(h(`
+        <div class="copy">
+            ${eyebrow ? '<p class="eyebrow"><img src="/icons/icon128.png" alt="">Duplicate Tab Finder</p>' : ''}
+            <h1>${shot.title}</h1>
+            <p class="sub">${shot.sub}</p>
+        </div>`), { left: px(left), width: px(width) });
+    copy.style.top = px((H - copy.offsetHeight) / 2);
+}
+
+if (shot.layout === 'tile') {
+    place(h('<div class="blob"></div>'), { width: '360px', height: '360px', right: '-120px', top: '-170px' });
+    const icon = c => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="${c}"/><text x="16" y="22" font-family="system-ui" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">D</text></svg>`)}`;
+    const fav = `<img src="${icon('#3b6ea8')}" alt="">`;
+    place(h(`
+        <div class="tile">
+            <div class="tile-head">
+                <img src="/icons/icon128.png" alt="">
+                <div><h2>Duplicate<br>Tab Finder</h2><p>Close duplicate tabs — safely.</p></div>
+            </div>
+            <div class="minitabs">
+                <div>${fav}<span>Docs</span></div><div class="gone">${fav}<span>Docs</span></div><div class="gone">${fav}<span>Docs</span></div>
+            </div>
+        </div>`), {});
+    window.__ready = true;
+} else if (video) {
+    place(h('<div class="blob"></div>'), { width: '900px', height: '900px', left: '-260px', top: '240px' });
+    buildBrowser({ left: 70, top: 92, width: 1140, height: 660, pscale: 0.9 });
+    place(h('<div id="caption"></div>'), {});
+    place(h(`<div id="cursor"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M4 2l15 11.5-6.6.9 3.9 7.3-2.9 1.5-3.9-7.4L4 20.5z" fill="#fff" stroke="#1d1a17" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`), {});
+    place(h(`<div id="endcard"><img src="/icons/icon128.png" alt=""><h2>Duplicate Tab Finder</h2><p>Close duplicate tabs — safely.</p><small>Free for Chrome and Firefox</small></div>`), {});
+} else if (shot.layout === 'marquee') {
+    place(h('<div class="blob"></div>'), { width: '700px', height: '700px', left: '-200px', top: '120px' });
+    buildCopy({ left: 72, width: 470 });
+    buildBrowser({ left: 610, top: 36, width: 740, height: 560, pscale: 0.68 });
+} else if (shot.layout === 'detail') {
+    place(h('<div class="blob"></div>'), { width: '820px', height: '820px', left: '-300px', top: '330px' });
+    buildCopy({ left: 64, width: shot.copyWidth });
+    wrap = place(h('<div class="popup-wrap" style="--pscale:1.2"><iframe title="popup"></iframe></div>'),
+        { left: '430px', top: '44px', right: 'auto', transformOrigin: 'top left' });
+    iframe = wrap.querySelector('iframe');
+} else {
+    place(h('<div class="blob"></div>'), { width: '820px', height: '820px', left: '-300px', top: '330px' });
+    buildCopy({ left: 64, width: shot.copyWidth || 400 });
+    buildBrowser({ left: 500, top: 64, width: 740, height: 800, pscale: 1 });
+}
+
+// ---------- popup + tab strip ----------
+const optionsNow = () => ({
+    ignoreHash: pdoc.getElementById('ignoreHash').checked,
+    ignoreTracking: pdoc.getElementById('ignoreTracking').checked,
+});
+
+let revealed = null;      // video intro: only these tab ids are shown in the strip
+let vt = 0;               // video clock (ms)
+const leaving = new Map(); // element -> time it started leaving
+
+function tabEl(tab) {
+    const el = h(`<div class="tab"><span class="fav"><img alt=""></span><span class="t"></span><span class="x">×</span></div>`);
+    el.dataset.id = tab.id;
+    el.querySelector('img').src = tab.favIconUrl;
+    el.querySelector('.t').textContent = tab.title;
+    el.classList.toggle('pinned', tab.pinned);
+    el.classList.toggle('active', tab.active);
+    return el;
+}
+
+function syncStrip(animate) {
+    if (!strip) return;
+    const tabs = pwin.tabs
+        .filter(t => t.windowId === 1 && (!revealed || revealed.has(t.id)))
+        .sort((a, b) => a.index - b.index);
+    const closing = new Set(pwin.findDuplicateGroups(pwin.tabs, optionsNow()).flatMap(g => g.close.map(t => t.id)));
+    const live = new Map([...strip.querySelectorAll('.tab:not(.leaving)')].map(el => [+el.dataset.id, el]));
+    const want = new Set(tabs.map(t => t.id));
+
+    for (const [id, el] of live) {
+        if (!want.has(id)) { el.classList.add('leaving'); leaving.set(el, vt); }
+    }
+    for (const [el, at] of leaving) if (vt - at > 450) { el.remove(); leaving.delete(el); }
+
+    let prev = strip.querySelector('.lights');
+    for (const tab of tabs) {
+        let el = live.get(tab.id);
+        if (!el) {
+            el = tabEl(tab);
+            if (animate) el.classList.add('entering');
+            prev.after(el);
+            if (animate) { el.offsetWidth; el.classList.remove('entering'); }
+        }
+        el.classList.toggle('dupe', closing.has(tab.id));
+        prev = el;
+    }
+}
+
+function syncHeight() {
+    iframe.style.height = px(Math.ceil(pdoc.body.getBoundingClientRect().height));
+}
+
+// Canvas-space center of an element inside the popup iframe.
+function popupPoint(sel, dx = 0) {
+    const el = typeof sel === 'string' ? pdoc.querySelector(sel) : sel;
+    const f = iframe.getBoundingClientRect();
+    const s = f.width / 400;
+    const r = el.getBoundingClientRect();
+    return { x: f.left + (r.left + r.width / 2) * s + dx, y: f.top + (r.top + r.height / 2) * s, rect: r, s, f };
+}
+
+const realWait = ms => new Promise(r => setTimeout(r, ms));
+const flush = async () => { for (let i = 0; i < 3; i++) await realWait(0); };
+
+function drawCallouts() {
+    const badges = [...pdoc.querySelectorAll('.badge')];
+    const find = text => badges.find(b => b.textContent === text);
+    const items = [
+        [find('current'), 'Keeps the tab you’re on'],
+        [find('pinned'), 'Never closes pinned tabs'],
+        [find('window 2'), 'Finds copies in other windows'],
+    ];
+    const labelLeft = iframe.getBoundingClientRect().right + 28;
+    for (const [badge, label] of items) {
+        if (!badge) continue;
+        const p = popupPoint(badge);
+        const r = { left: p.f.left + p.rect.left * p.s, top: p.f.top + p.rect.top * p.s, w: p.rect.width * p.s, h: p.rect.height * p.s };
+        place(h('<div class="ring"></div>'), { left: px(r.left - 4), top: px(r.top - 4), width: px(r.w + 8), height: px(r.h + 8) });
+        const c = place(h(`<div class="callout"><i></i><span>${label}</span></div>`), {});
+        // Start past the row's last badge so the line never crosses another badge.
+        const lastBadge = [...badge.closest('.row').querySelectorAll('.badge')].pop().getBoundingClientRect();
+        const start = p.f.left + lastBadge.right * p.s + 6;
+        c.style.left = px(start);
+        c.style.top = px(p.y - c.offsetHeight / 2);
+        c.style.width = px(labelLeft - start + c.querySelector('span').offsetWidth);
+    }
+}
+
+async function loadPopup() {
+    for (const k of ['ignoreHash', 'ignoreTracking']) localStorage.setItem(k, shot.opts[k] ? '1' : '0');
+    await new Promise(res => {
+        iframe.onload = res;
+        iframe.src = '/store-assets/src/popup-harness.html' + (video ? '?virtual=1' : '');
+    });
+    pwin = iframe.contentWindow;
+    pdoc = iframe.contentDocument;
+    if (video) pwin.__advance(200);
+    await flush();
+    await realWait(100);
+    syncHeight();
+}
+
+// ---------- static shots ----------
+async function renderStatic() {
+    await loadPopup();
+    if (shot.hover) {
+        pdoc.getElementById(shot.hover).closest('.rule').dispatchEvent(new MouseEvent('mouseenter'));
+    }
+    if (shot.closeAll) {
+        pdoc.getElementById('closeAll').click();
+        await realWait(400);
+    }
+    syncHeight();
+    syncStrip(false);
+    if (shot.dupes) strip.classList.add('show-dupes');
+    if (shot.callouts) drawCallouts();
+    await realWait(500);
+    window.__ready = true;
+}
+
+// ---------- video ----------
+// A manual clock: every frame, each running animation (CSS transitions in both documents and our own
+// WAAPI animations) is paused and stepped by exactly dt, so frames are smooth regardless of render speed.
+const stepped = new WeakSet();
+function advanceAnimations(dt) {
+    for (const doc of [document, pdoc]) {
+        for (const a of doc.getAnimations()) {
+            if (!stepped.has(a)) { stepped.add(a); a.pause(); a.currentTime = 0; }
+            else a.currentTime = (a.currentTime || 0) + dt;
+        }
+    }
+}
+
+let cur = { x: 760, y: 430 };
+const cursor = () => document.getElementById('cursor');
+function moveTo({ x, y }, dur) {
+    cursor().animate([{ transform: `translate(${cur.x}px,${cur.y}px)` }, { transform: `translate(${x - 4}px,${y - 2}px)` }],
+        { duration: dur, easing: 'cubic-bezier(.45,0,.15,1)', fill: 'forwards' });
+    cur = { x: x - 4, y: y - 2 };
+}
+function click() {
+    const ring = place(h('<div class="click-ring"></div>'), { left: px(cur.x + 4), top: px(cur.y + 2) });
+    ring.animate([{ transform: 'scale(.3)', opacity: .7 }, { transform: 'scale(1.5)', opacity: 0 }], { duration: 450, easing: 'ease-out', fill: 'forwards' });
+    cursor().querySelector('svg').animate([{ transform: 'scale(1)' }, { transform: 'scale(.82)' }, { transform: 'scale(1)' }], { duration: 220 });
+}
+function caption(text) {
+    const box = document.getElementById('caption');
+    for (const old of box.querySelectorAll('.cap')) {
+        old.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-6px)' }], { duration: 250, fill: 'forwards' });
+    }
+    const cap = h(`<div class="cap"></div>`);
+    cap.textContent = text;
+    box.append(cap);
+    cap.animate([{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 380, delay: 120, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
+}
+const rule = n => pdoc.getElementById(n).closest('.rule');
+const fade = (el, to, dur) => el.animate([{ opacity: getComputedStyle(el).opacity }, { opacity: to }], { duration: dur, fill: 'forwards' });
+
+const INTRO = [4, 5, 6, 7, 8, 9, 10];
+const EVENTS = [
+    [0.0, () => caption('Tabs pile up fast.')],
+    ...INTRO.map((id, i) => [0.5 + i * 0.28, () => revealed.add(id)]),
+    [2.7, () => strip.classList.add('show-dupes')],
+    [3.1, () => { caption('Duplicate Tab Finder spots the copies.'); cursor().style.transform = `translate(${cur.x}px,${cur.y}px)`; fade(cursor(), 1, 250); }],
+    [3.3, () => { const r = document.getElementById('extBtn').getBoundingClientRect(); moveTo({ x: r.left + r.width / 2, y: r.top + r.height / 2 }, 850); }],
+    [4.25, () => { click(); wrap.classList.remove('closed'); }],
+    [6.4, () => { caption('Hover a rule to preview what it would close.'); moveTo(popupPoint('#ignoreTracking', 0), 800); }],
+    [7.3, () => rule('ignoreTracking').dispatchEvent(new MouseEvent('mouseenter'))],
+    [9.9, () => { click(); pdoc.getElementById('ignoreTracking').click(); }],
+    [10.7, () => { caption('Keeps the tab you’re on. Never touches pinned tabs.'); rule('ignoreTracking').dispatchEvent(new MouseEvent('mouseleave')); moveTo(popupPoint('#closeAll'), 900); }],
+    [11.9, () => { click(); pdoc.getElementById('closeAll').click(); }],
+    [14.3, () => { caption('Changed your mind? Undo brings them back.'); moveTo(popupPoint('#undoBtn'), 700); }],
+    [15.2, () => { click(); pdoc.getElementById('undoBtn').click(); }],
+    [17.6, () => { fade(cursor(), 0, 200); const e = document.getElementById('endcard'); fade(e, 1, 500); e.querySelector('img').animate([{ transform: 'scale(.85)' }, { transform: 'none' }], { duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)' }); }],
+];
+window.__duration = 21;
+
+let nextEvent = 0;
+window.__frame = async (dt) => {
+    vt += dt;
+    while (nextEvent < EVENTS.length && EVENTS[nextEvent][0] * 1000 <= vt) await EVENTS[nextEvent++][1]();
+    pwin.__advance(dt);
+    await flush();
+    syncStrip(true);
+    syncHeight();
+    advanceAnimations(dt);
+};
+
+async function renderVideo() {
+    wrap.classList.add('closed');
+    revealed = new Set([3, 1, 2]);
+    await loadPopup();
+    syncStrip(false);
+    advanceAnimations(0);
+    window.__ready = true;
+}
+
+if (shot.layout !== 'tile') (video ? renderVideo : renderStatic)();
+</script>
+</body>
+</html>

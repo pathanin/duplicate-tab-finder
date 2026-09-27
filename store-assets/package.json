@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "scripts": { "render": "node render.mjs" },
+  "devDependencies": { "playwright-core": "^1.50.0" }
+}
