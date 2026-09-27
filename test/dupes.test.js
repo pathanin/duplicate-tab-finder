@@ -139,3 +139,33 @@ test('splitUrl: first real param after a leading tracking param keeps url readab
     assert.strictEqual(ignored(segs), 'utm_source=1&');
     assert.strictEqual(segs.filter(s => !s.ignored).map(s => s.text).join(''), 'https://a.com/?id=9');
 });
+
+// --- YouTube timestamps / share tags ---
+
+test('ignoreTracking: YouTube t= and si= are ignored', () => {
+    const o = { ignoreTracking: true };
+    const base = 'https://www.youtube.com/watch?v=uMUbbu3dwh0';
+    assert.strictEqual(normalizeUrl(base + '&t=481s', o), base);
+    assert.strictEqual(normalizeUrl(base + '&si=abc&t=5', o), base);
+    assert.strictEqual(normalizeUrl('https://youtu.be/uMUbbu3dwh0?t=10', o), 'https://youtu.be/uMUbbu3dwh0');
+    assert.strictEqual(normalizeUrl('https://m.youtube.com/watch?v=x&t=1', o), 'https://m.youtube.com/watch?v=x');
+});
+
+test('ignoreTracking: t= is kept on non-YouTube sites and different videos stay distinct', () => {
+    const o = { ignoreTracking: true };
+    assert.strictEqual(normalizeUrl('https://a.com/x?t=5', o), 'https://a.com/x?t=5');
+    assert.strictEqual(normalizeUrl('https://notyoutube.com/x?t=5', o), 'https://notyoutube.com/x?t=5');
+    assert.notStrictEqual(normalizeUrl('https://www.youtube.com/watch?v=A&t=1', o), normalizeUrl('https://www.youtube.com/watch?v=B&t=1', o));
+});
+
+test('ignoreTracking: YouTube video with and without timestamp are duplicates', () => {
+    const tabs = [t(1, 'https://www.youtube.com/watch?v=uMUbbu3dwh0&t=481s'), t(2, 'https://www.youtube.com/watch?v=uMUbbu3dwh0')];
+    assert.strictEqual(findDuplicateGroups(tabs, { ignoreTracking: true }).length, 1);
+    assert.strictEqual(findDuplicateGroups(tabs).length, 0);
+});
+
+test('splitUrl: marks YouTube timestamp, not t= elsewhere', () => {
+    const ignoredText = segs => segs.filter(s => s.ignored).map(s => s.text).join('');
+    assert.strictEqual(ignoredText(splitUrl('https://www.youtube.com/watch?v=x&t=481s', { ignoreTracking: true })), '&t=481s');
+    assert.strictEqual(ignoredText(splitUrl('https://a.com/x?t=5', { ignoreTracking: true })), '');
+});

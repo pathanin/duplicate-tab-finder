@@ -2,6 +2,12 @@
 // and marks the rest for closing. Pinned tabs are never closed.
 const INTERNAL_URL = /^(chrome|edge|about|chrome-extension|moz-extension):/;
 const TRACKING_PARAM = /^(utm_.*|fbclid|gclid)$/i;
+// YouTube: t = timestamp, si = share tag. Only there, since t= means other things elsewhere.
+const YOUTUBE_HOST = /(^|\.)(youtube\.com|youtu\.be)$/i;
+const YOUTUBE_PARAM = /^(t|si)$/;
+
+const isIgnoredParam = (host, key) => TRACKING_PARAM.test(key) || (YOUTUBE_HOST.test(host) && YOUTUBE_PARAM.test(key));
+const hostOf = url => { try { return new URL(url).hostname; } catch { return ''; } };
 
 // Returns the key used to decide whether two URLs are duplicates.
 function normalizeUrl(url, { ignoreHash = false, ignoreTracking = false } = {}) {
@@ -11,7 +17,7 @@ function normalizeUrl(url, { ignoreHash = false, ignoreTracking = false } = {}) 
     if (ignoreHash) u.hash = '';
     if (ignoreTracking) {
         for (const key of [...u.searchParams.keys()]) {
-            if (TRACKING_PARAM.test(key)) u.searchParams.delete(key);
+            if (isIgnoredParam(u.hostname, key)) u.searchParams.delete(key);
         }
         if (!u.searchParams.size) u.search = '';
     }
@@ -37,7 +43,8 @@ function splitUrl(url, { ignoreHash = false, ignoreTracking = false } = {}) {
         push(base, false);
     } else {
         const tokens = base.slice(queryAt + 1).split('&');
-        const isTracking = tok => ignoreTracking && TRACKING_PARAM.test(tok.split('=')[0]);
+        const host = hostOf(url);
+        const isTracking = tok => ignoreTracking && isIgnoredParam(host, tok.split('=')[0]);
         push(base.slice(0, queryAt), false);
         push('?', tokens.every(isTracking));
         let keptBefore = false;
