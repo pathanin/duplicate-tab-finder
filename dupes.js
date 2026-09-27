@@ -18,6 +18,44 @@ function normalizeUrl(url, { ignoreHash = false, ignoreTracking = false } = {}) 
     return u.href;
 }
 
+// Splits a URL into [{ text, ignored }] segments marking what normalizeUrl would drop.
+// Works on the raw string so the segments always rejoin to the exact original.
+function splitUrl(url, { ignoreHash = false, ignoreTracking = false } = {}) {
+    const segs = [];
+    const push = (text, ignored) => {
+        if (!text) return;
+        const last = segs[segs.length - 1];
+        if (last && last.ignored === ignored) last.text += text;
+        else segs.push({ text, ignored });
+    };
+
+    const hashAt = url.indexOf('#');
+    const base = hashAt < 0 ? url : url.slice(0, hashAt);
+    const queryAt = base.indexOf('?');
+
+    if (queryAt < 0) {
+        push(base, false);
+    } else {
+        const tokens = base.slice(queryAt + 1).split('&');
+        const isTracking = tok => ignoreTracking && TRACKING_PARAM.test(tok.split('=')[0]);
+        push(base.slice(0, queryAt), false);
+        push('?', tokens.every(isTracking));
+        let keptBefore = false;
+        tokens.forEach((tok, i) => {
+            const sep = i < tokens.length - 1 ? '&' : '';
+            if (isTracking(tok)) {
+                // Take the separator on whichever side keeps the remaining URL readable.
+                push(keptBefore ? '&' + tok : tok + sep, true);
+            } else {
+                push(keptBefore ? '&' + tok : tok, false);
+                keptBefore = true;
+            }
+        });
+    }
+    if (hashAt >= 0) push(url.slice(hashAt), ignoreHash);
+    return segs;
+}
+
 function findDuplicateGroups(tabs, options) {
     const byUrl = new Map();
     for (const tab of tabs) {
@@ -37,4 +75,4 @@ function findDuplicateGroups(tabs, options) {
     return groups;
 }
 
-if (typeof module !== 'undefined') module.exports = { findDuplicateGroups, normalizeUrl };
+if (typeof module !== 'undefined') module.exports = { findDuplicateGroups, normalizeUrl, splitUrl };

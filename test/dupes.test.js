@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { findDuplicateGroups, normalizeUrl } = require('../dupes.js');
+const { findDuplicateGroups, normalizeUrl, splitUrl } = require('../dupes.js');
 
 const t = (id, url, extra = {}) => ({ id, url, title: `t${id}`, ...extra });
 
@@ -104,4 +104,38 @@ test('group exposes all its tabs for preview, in original order', () => {
         t(1, 'https://a', { pinned: true }), t(2, 'https://a', { active: true }), t(3, 'https://a'),
     ]);
     assert.deepStrictEqual(g.tabs.map(x => x.id), [1, 2, 3]);
+});
+
+// --- splitUrl: segments for highlighting the ignored parts of a URL ---
+
+const ignored = segs => segs.filter(s => s.ignored).map(s => s.text).join('');
+const joined = segs => segs.map(s => s.text).join('');
+
+test('splitUrl: no options = one plain segment', () => {
+    assert.deepStrictEqual(splitUrl('https://a.com/x?utm_source=z#h'), [{ text: 'https://a.com/x?utm_source=z#h', ignored: false }]);
+});
+
+test('splitUrl: segments always rejoin to the original url', () => {
+    for (const url of ['https://a.com/', 'https://a.com/x?a=1&utm_x=2#h', 'https://a.com/?#', 'weird?utm_a&&b=%20#']) {
+        assert.strictEqual(joined(splitUrl(url, { ignoreHash: true, ignoreTracking: true })), url);
+    }
+});
+
+test('splitUrl: ignoreHash marks the fragment', () => {
+    assert.strictEqual(ignored(splitUrl('https://a.com/x#top', { ignoreHash: true })), '#top');
+});
+
+test('splitUrl: ignoreTracking marks tracking params with their separator', () => {
+    assert.strictEqual(ignored(splitUrl('https://a.com/x?id=9&utm_source=z&fbclid=1', { ignoreTracking: true })), '&utm_source=z&fbclid=1');
+});
+
+test('splitUrl: when every param is tracking, the "?" is marked too', () => {
+    assert.strictEqual(ignored(splitUrl('https://a.com/x?utm_source=z&gclid=1', { ignoreTracking: true })), '?utm_source=z&gclid=1');
+});
+
+test('splitUrl: first real param after a leading tracking param keeps url readable', () => {
+    // "?utm=1&id=9" -> ignored "utm_source=1&", kept "?id=9"-like reading
+    const segs = splitUrl('https://a.com/?utm_source=1&id=9', { ignoreTracking: true });
+    assert.strictEqual(ignored(segs), 'utm_source=1&');
+    assert.strictEqual(segs.filter(s => !s.ignored).map(s => s.text).join(''), 'https://a.com/?id=9');
 });

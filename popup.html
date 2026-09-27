@@ -6,22 +6,53 @@
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
+    <header class="top">
+        <img src="icons/icon48.png" alt="" class="logo">
+        <div class="title">
             <h1>Duplicate Tabs</h1>
-            <p>Tabs open at the same URL.</p>
+            <p id="summary">Looking…</p>
         </div>
-        <div class="options">
-            <label><input type="checkbox" id="ignoreHash"> Ignore <code>#fragment</code> <span class="delta" id="ignoreHashDelta"></span></label>
-            <label><input type="checkbox" id="ignoreTracking"> Ignore tracking params <small>(utm_*, fbclid, gclid)</small> <span class="delta" id="ignoreTrackingDelta"></span></label>
+        <div class="tally" aria-hidden="true"><strong id="tally">0</strong><span>to close</span></div>
+    </header>
+
+    <section class="rules" aria-label="Matching rules">
+        <label class="rule">
+            <input type="checkbox" role="switch" id="ignoreHash" class="switch">
+            <span class="rule-text">
+                <span class="rule-name">Ignore <code>#fragments</code></span>
+                <span class="rule-hint">page#intro and page#setup count as the same</span>
+            </span>
+            <span class="delta" id="ignoreHashDelta"></span>
+        </label>
+        <label class="rule">
+            <input type="checkbox" role="switch" id="ignoreTracking" class="switch">
+            <span class="rule-text">
+                <span class="rule-name">Ignore tracking params</span>
+                <span class="rule-hint"><code>utm_*</code>, <code>fbclid</code>, <code>gclid</code></span>
+            </span>
+            <span class="delta" id="ignoreTrackingDelta"></span>
+        </label>
+    </section>
+
+    <div id="previewBanner" class="preview-banner" hidden></div>
+
+    <main>
+        <ul id="groups" class="groups"></ul>
+        <div id="empty" class="empty" hidden>
+            <img src="icons/icon128.png" alt="">
+            <p class="empty-title">No duplicates</p>
+            <p id="emptyHint" class="empty-hint">Every open tab is unique.</p>
         </div>
-        <div class="actions">
-            <button id="scanBtn">Scan for Duplicates</button>
-            <button id="closeBtn" disabled>Close Duplicates</button>
+    </main>
+
+    <footer class="bottom">
+        <div id="toast" class="toast" role="status" aria-live="polite" hidden>
+            <span id="toastText"></span>
+            <button id="undoBtn" class="link-btn" type="button">Undo</button>
         </div>
-        <div id="status"></div>
-        <ul id="duplicateList"></ul>
-    </div>
+        <button id="closeAll" class="primary" type="button" disabled>Close duplicates</button>
+    </footer>
+
     <script src="dupes.js"></script>
     <script src="popup.js"></script>
 </body>
