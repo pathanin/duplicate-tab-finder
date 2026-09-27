@@ -70,10 +70,10 @@ test('normalizeUrl: ignoreHash strips fragment', () => {
     assert.strictEqual(normalizeUrl('https://a.com/x#', { ignoreHash: true }), 'https://a.com/x');
 });
 
-test('normalizeUrl: ignoreTracking strips utm_*, fbclid, gclid and keeps other params in order', () => {
+test('normalizeUrl: ignoreTracking strips utm_*, fbclid, gclid and keeps other params (sorted)', () => {
     assert.strictEqual(
         normalizeUrl('https://a.com/x?b=2&utm_source=z&UTM_Medium=m&fbclid=1&gclid=2&a=1', { ignoreTracking: true }),
-        'https://a.com/x?b=2&a=1');
+        'https://a.com/x?a=1&b=2');
 });
 
 test('normalizeUrl: ignoreTracking drops a now-empty "?"', () => {
@@ -168,4 +168,70 @@ test('splitUrl: marks YouTube timestamp, not t= elsewhere', () => {
     const ignoredText = segs => segs.filter(s => s.ignored).map(s => s.text).join('');
     assert.strictEqual(ignoredText(splitUrl('https://www.youtube.com/watch?v=x&t=481s', { ignoreTracking: true })), '&t=481s');
     assert.strictEqual(ignoredText(splitUrl('https://a.com/x?t=5', { ignoreTracking: true })), '');
+});
+
+// --- More tracking params, site rules, trailing slash, param order (all under ignoreTracking) ---
+
+const same = (a, b) => assert.strictEqual(normalizeUrl(a, { ignoreTracking: true }), normalizeUrl(b, { ignoreTracking: true }), `${a} vs ${b}`);
+const differ = (a, b) => assert.notStrictEqual(normalizeUrl(a, { ignoreTracking: true }), normalizeUrl(b, { ignoreTracking: true }), `${a} vs ${b}`);
+
+test('ignoreTracking: common ad/email/analytics/social params are ignored everywhere', () => {
+    const params = ['msclkid', 'dclid', 'gbraid', 'wbraid', 'gad_source', 'gclsrc', '_gl', 'twclid', 'ttclid',
+        'li_fat_id', 'yclid', 'rdt_cid', 'mc_cid', 'mc_eid', '_hsenc', '_hsmi', 'mkt_tok', 'oly_enc_id',
+        'oly_anon_id', 'vero_id', 'pk_campaign', 'mtm_source', 's_cid', 'igshid', 'igsh'];
+    for (const p of params) same(`https://a.com/x?id=1&${p}=zzz`, 'https://a.com/x?id=1');
+});
+
+test('ignoreTracking: similar-looking real params are kept', () => {
+    differ('https://a.com/x?gl=us', 'https://a.com/x');
+    differ('https://a.com/x?pk=5', 'https://a.com/x');
+    differ('https://a.com/x?s=5', 'https://a.com/x');
+});
+
+test('ignoreTracking: Spotify si and X/Twitter s,t are ignored only on those hosts', () => {
+    same('https://open.spotify.com/track/abc?si=123', 'https://open.spotify.com/track/abc');
+    same('https://x.com/u/status/1?s=20&t=abc', 'https://x.com/u/status/1');
+    same('https://twitter.com/u/status/1?s=46', 'https://twitter.com/u/status/1');
+    differ('https://a.com/x?si=1', 'https://a.com/x');
+});
+
+test('ignoreTracking: Google Search session junk is ignored, the query is not', () => {
+    same('https://www.google.com/search?q=cats&ei=abc&ved=0ah&sxsrf=x&sca_esv=1&oq=cat&gs_lp=zz&sclient=gws-wiz',
+        'https://www.google.com/search?q=cats');
+    same('https://www.google.co.uk/search?q=cats&ei=1', 'https://www.google.co.uk/search?q=cats');
+    differ('https://www.google.com/search?q=cats', 'https://www.google.com/search?q=dogs');
+    differ('https://www.google.com/search?q=cats&tbm=isch', 'https://www.google.com/search?q=cats');
+});
+
+test('ignoreTracking: Medium source= is ignored on medium.com only', () => {
+    same('https://medium.com/@u/post-123?source=rss----1', 'https://medium.com/@u/post-123');
+    same('https://blog.medium.com/post-123?source=x', 'https://blog.medium.com/post-123');
+    differ('https://a.com/x?source=1', 'https://a.com/x');
+});
+
+test('ignoreTracking: trailing slash on the path is ignored', () => {
+    same('https://a.com/docs/', 'https://a.com/docs');
+    same('https://a.com/docs/?id=1', 'https://a.com/docs?id=1');
+    same('https://a.com/', 'https://a.com');
+    differ('https://a.com/docs', 'https://a.com/doc');
+});
+
+test('ignoreTracking: parameter order is ignored, values are not', () => {
+    same('https://a.com/x?a=1&b=2', 'https://a.com/x?b=2&a=1');
+    differ('https://a.com/x?a=1&b=2', 'https://a.com/x?a=2&b=1');
+});
+
+test('without ignoreTracking, slash and order still matter', () => {
+    assert.notStrictEqual(normalizeUrl('https://a.com/docs/'), normalizeUrl('https://a.com/docs'));
+    assert.notStrictEqual(normalizeUrl('https://a.com/x?a=1&b=2'), normalizeUrl('https://a.com/x?b=2&a=1'));
+});
+
+test('splitUrl: marks trailing slash and site-specific params', () => {
+    const o = { ignoreTracking: true };
+    assert.strictEqual(ignored(splitUrl('https://a.com/docs/', o)), '/');
+    assert.strictEqual(ignored(splitUrl('https://a.com/docs/?id=1', o)), '/');
+    assert.strictEqual(ignored(splitUrl('https://a.com/', o)), '');
+    assert.strictEqual(ignored(splitUrl('https://www.google.com/search?q=cats&ei=abc', o)), '&ei=abc');
+    assert.strictEqual(ignored(splitUrl('https://medium.com/p?source=x', o)), '?source=x');
+    assert.strictEqual(joined(splitUrl('https://a.com/docs/?id=1#h', o)), 'https://a.com/docs/?id=1#h');
 });

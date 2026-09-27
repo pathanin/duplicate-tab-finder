@@ -1,25 +1,40 @@
 // Groups tabs by URL. For each group, keeps the active tab (else a pinned one, else the first)
 // and marks the rest for closing. Pinned tabs are never closed.
 const INTERNAL_URL = /^(chrome|edge|about|chrome-extension|moz-extension):/;
-const TRACKING_PARAM = /^(utm_.*|fbclid|gclid)$/i;
-// YouTube: t = timestamp, si = share tag. Only there, since t= means other things elsewhere.
-const YOUTUBE_HOST = /(^|\.)(youtube\.com|youtu\.be)$/i;
-const YOUTUBE_PARAM = /^(t|si)$/;
+// Params that never change the page: ad click IDs, email/analytics campaign tags, social share tags.
+const TRACKING_PARAM = new RegExp('^(' + [
+    'utm_.*', 'fbclid', 'gclid', 'gclsrc', 'dclid', 'gbraid', 'wbraid', 'gad_source', '_gl', 'msclkid',
+    'twclid', 'ttclid', 'li_fat_id', 'yclid', 'rdt_cid', 'igshid', 'igsh',
+    'mc_cid', 'mc_eid', '_hsenc', '_hsmi', 'mkt_tok', 'oly_enc_id', 'oly_anon_id', 'vero_id',
+    'pk_.*', 'mtm_.*', 's_cid',
+].join('|') + ')$', 'i');
+// Params that are junk only on specific sites, since the same names mean real things elsewhere.
+const SITE_PARAMS = [
+    [/(^|\.)(youtube\.com|youtu\.be)$/i, /^(t|si)$/],                       // timestamp, share tag
+    [/(^|\.)spotify\.com$/i, /^si$/],
+    [/(^|\.)(x|twitter)\.com$/i, /^(s|t)$/],
+    [/(^|\.)medium\.com$/i, /^source$/],
+    // Google Search session state. Keeps q and result filters (tbm, tbs, udm, start, hl).
+    [/(^|\.)google\.[a-z.]+$/i, /^(ei|ved|sxsrf|sca_esv|oq|gs_l\w*|sclient|uact|aqs|sourceid|client|ie|rlz|biw|bih|dpr|iflsig|fbs|lei|sei|sa|source|prmd)$/],
+];
 
-const isIgnoredParam = (host, key) => TRACKING_PARAM.test(key) || (YOUTUBE_HOST.test(host) && YOUTUBE_PARAM.test(key));
-const hostOf = url => { try { return new URL(url).hostname; } catch { return ''; } };
+const isIgnoredParam = (host, key) =>
+    TRACKING_PARAM.test(key) || SITE_PARAMS.some(([h, p]) => h.test(host) && p.test(key));
+const parse = url => { try { return new URL(url); } catch { return null; } };
 
 // Returns the key used to decide whether two URLs are duplicates.
 function normalizeUrl(url, { ignoreHash = false, ignoreTracking = false } = {}) {
     if (!ignoreHash && !ignoreTracking) return url;
-    let u;
-    try { u = new URL(url); } catch { return url; }
+    const u = parse(url);
+    if (!u) return url;
     if (ignoreHash) u.hash = '';
     if (ignoreTracking) {
         for (const key of [...u.searchParams.keys()]) {
             if (isIgnoredParam(u.hostname, key)) u.searchParams.delete(key);
         }
+        u.searchParams.sort();
         if (!u.searchParams.size) u.search = '';
+        u.pathname = u.pathname.replace(/\/+$/, '') || '/';
     }
     return u.href;
 }
@@ -38,14 +53,17 @@ function splitUrl(url, { ignoreHash = false, ignoreTracking = false } = {}) {
     const hashAt = url.indexOf('#');
     const base = hashAt < 0 ? url : url.slice(0, hashAt);
     const queryAt = base.indexOf('?');
+    const parsed = parse(url);
+    const beforeQuery = queryAt < 0 ? base : base.slice(0, queryAt);
+    // Trailing slash (not the root "/") is dropped by normalizeUrl.
+    const slash = ignoreTracking && parsed && parsed.pathname.length > 1 ? beforeQuery.match(/\/+$/)?.[0] || '' : '';
+    push(beforeQuery.slice(0, beforeQuery.length - slash.length), false);
+    push(slash, true);
 
-    if (queryAt < 0) {
-        push(base, false);
-    } else {
+    if (queryAt >= 0) {
         const tokens = base.slice(queryAt + 1).split('&');
-        const host = hostOf(url);
+        const host = parsed ? parsed.hostname : '';
         const isTracking = tok => ignoreTracking && isIgnoredParam(host, tok.split('=')[0]);
-        push(base.slice(0, queryAt), false);
         push('?', tokens.every(isTracking));
         let keptBefore = false;
         tokens.forEach((tok, i) => {
