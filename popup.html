@@ -11,6 +11,10 @@
             <h1>Duplicate Tabs</h1>
             <p>Tabs open at the same URL.</p>
         </div>
+        <div class="options">
+            <label><input type="checkbox" id="ignoreHash"> Ignore <code>#fragment</code> <span class="delta" id="ignoreHashDelta"></span></label>
+            <label><input type="checkbox" id="ignoreTracking"> Ignore tracking params <small>(utm_*, fbclid, gclid)</small> <span class="delta" id="ignoreTrackingDelta"></span></label>
+        </div>
         <div class="actions">
             <button id="scanBtn">Scan for Duplicates</button>
             <button id="closeBtn" disabled>Close Duplicates</button>

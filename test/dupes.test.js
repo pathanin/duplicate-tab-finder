@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const { findDuplicateGroups } = require('../dupes.js');
+const { findDuplicateGroups, normalizeUrl } = require('../dupes.js');
 
 const t = (id, url, extra = {}) => ({ id, url, title: `t${id}`, ...extra });
 
@@ -57,4 +57,51 @@ test('reports full group size including pinned tabs', () => {
         t(1, 'https://a', { active: true }), t(2, 'https://a', { pinned: true }), t(3, 'https://a'),
     ]);
     assert.strictEqual(g.size, 3);
+});
+
+// --- URL normalization options ---
+
+test('normalizeUrl: no options leaves url untouched', () => {
+    assert.strictEqual(normalizeUrl('https://a.com/x?utm_source=z#top'), 'https://a.com/x?utm_source=z#top');
+});
+
+test('normalizeUrl: ignoreHash strips fragment', () => {
+    assert.strictEqual(normalizeUrl('https://a.com/x#top', { ignoreHash: true }), 'https://a.com/x');
+    assert.strictEqual(normalizeUrl('https://a.com/x#', { ignoreHash: true }), 'https://a.com/x');
+});
+
+test('normalizeUrl: ignoreTracking strips utm_*, fbclid, gclid and keeps other params in order', () => {
+    assert.strictEqual(
+        normalizeUrl('https://a.com/x?b=2&utm_source=z&UTM_Medium=m&fbclid=1&gclid=2&a=1', { ignoreTracking: true }),
+        'https://a.com/x?b=2&a=1');
+});
+
+test('normalizeUrl: ignoreTracking drops a now-empty "?"', () => {
+    assert.strictEqual(normalizeUrl('https://a.com/x?utm_source=z', { ignoreTracking: true }), 'https://a.com/x');
+});
+
+test('normalizeUrl: ignoreTracking keeps fragment unless ignoreHash is also set', () => {
+    assert.strictEqual(normalizeUrl('https://a.com/?utm_source=z#h', { ignoreTracking: true }), 'https://a.com/#h');
+    assert.strictEqual(normalizeUrl('https://a.com/?utm_source=z#h', { ignoreTracking: true, ignoreHash: true }), 'https://a.com/');
+});
+
+test('normalizeUrl: unparseable url is returned as-is', () => {
+    assert.strictEqual(normalizeUrl('not a url', { ignoreHash: true, ignoreTracking: true }), 'not a url');
+});
+
+test('grouping respects options', () => {
+    const tabs = [t(1, 'https://a.com/#one'), t(2, 'https://a.com/#two'), t(3, 'https://a.com/?utm_source=x')];
+    assert.deepStrictEqual(findDuplicateGroups(tabs), []);
+    const [g1] = findDuplicateGroups(tabs, { ignoreHash: true });
+    assert.deepStrictEqual([g1.keep.id, ...g1.close.map(x => x.id)], [1, 2]);
+    const [g2] = findDuplicateGroups(tabs, { ignoreHash: true, ignoreTracking: true });
+    assert.deepStrictEqual([g2.keep.id, ...g2.close.map(x => x.id)], [1, 2, 3]);
+    assert.strictEqual(g2.url, 'https://a.com/');
+});
+
+test('group exposes all its tabs for preview, in original order', () => {
+    const [g] = findDuplicateGroups([
+        t(1, 'https://a', { pinned: true }), t(2, 'https://a', { active: true }), t(3, 'https://a'),
+    ]);
+    assert.deepStrictEqual(g.tabs.map(x => x.id), [1, 2, 3]);
 });
