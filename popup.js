@@ -1,5 +1,5 @@
 // Perf notes: one chrome.tabs.query per refresh; toggles, hover previews and deltas are all computed
-// from that cached array. No background script, so nothing runs while the popup is closed.
+// from that cached array. Hover only rebuilds the small peek card, never the list. No background script, so nothing runs while the popup is closed.
 const RULES = {
     ignoreHash: 'Ignore #fragments',
     ignoreTracking: 'Ignore tracking params',
@@ -49,13 +49,12 @@ const favicon = tab => {
 
 const MARKS = { keep: '●', close: '✕', pinned: '📌' };
 
-const rowNode = (tab, stateName, options, changed, windowLabel) => {
-    const btn = el('button', 'row' + (changed ? ' changed' : ''));
+const rowNode = (tab, stateName, windowLabel) => {
+    const btn = el('button', 'row');
     btn.type = 'button';
     btn.dataset.state = stateName;
     btn.setAttribute('aria-label', `${stateName}: ${tab.url}. Go to tab`);
-    btn.append(el('span', 'mark', MARKS[stateName]), urlNode(tab.url, options));
-    if (changed) btn.append(el('span', 'badge new', 'new'));
+    btn.append(el('span', 'mark', MARKS[stateName]), urlNode(tab.url, state.options));
     if (tab.pinned) btn.append(el('span', 'badge', 'pinned'));
     if (tab.active) btn.append(el('span', 'badge', 'current'));
     if (windowLabel) btn.append(el('span', 'badge', windowLabel));
@@ -64,12 +63,11 @@ const rowNode = (tab, stateName, options, changed, windowLabel) => {
     return btn;
 };
 
-const groupNode = (group, options, baseCloseIds) => {
+const groupNode = group => {
     const li = el('li', 'group');
     const head = el('div', 'group-head');
     const closeBtn = el('button', 'secondary', `Close ${group.close.length}`);
     closeBtn.type = 'button';
-    closeBtn.disabled = !!state.preview;
     closeBtn.addEventListener('click', () => closeDuplicates(group.url));
     head.append(
         favicon(group.keep),
@@ -83,31 +81,23 @@ const groupNode = (group, options, baseCloseIds) => {
     const rows = el('ul', 'rows');
     for (const tab of group.tabs) {
         const s = tab === group.keep ? 'keep' : group.close.includes(tab) ? 'close' : 'pinned';
-        const changed = baseCloseIds && s === 'close' && !baseCloseIds.has(tab.id);
         const item = el('li');
         const windowLabel = windows.length > 1 ? `window ${windows.indexOf(tab.windowId) + 1}` : '';
-        item.append(rowNode(tab, s, options, changed, windowLabel));
+        item.append(rowNode(tab, s, windowLabel));
         rows.append(item);
     }
     li.append(head, rows);
     return li;
 };
 
+// Committed state: list, header, rule deltas, footer. Hover never calls this.
 function draw() {
-    const { tabs, options, preview } = state;
-    const baseGroups = findDuplicateGroups(tabs, options);
-    const baseCount = countClosing(baseGroups);
+    const { tabs, options } = state;
+    const groups = findDuplicateGroups(tabs, options);
+    const count = countClosing(groups);
 
-    const shownOptions = preview ? { ...options, [preview]: !options[preview] } : options;
-    const groups = preview ? findDuplicateGroups(tabs, shownOptions) : baseGroups;
-    const count = preview ? countClosing(groups) : baseCount;
-    const baseCloseIds = preview && new Set(baseGroups.flatMap(g => g.close.map(t => t.id)));
-
-    // Rule deltas: what flipping each rule would change, relative to the committed options.
     for (const name of Object.keys(RULES)) {
-        const flipped = preview === name ? count
-            : countClosing(findDuplicateGroups(tabs, { ...options, [name]: !options[name] }));
-        const diff = flipped - baseCount;
+        const diff = countClosing(findDuplicateGroups(tabs, { ...options, [name]: !options[name] })) - count;
         const delta = $(`${name}Delta`);
         delta.textContent = !diff ? '' : options[name] ? `catching ${-diff}` : `+${diff} more`;
         delta.title = !diff ? '' : options[name]
@@ -115,31 +105,57 @@ function draw() {
             : `Turning this on would close ${plural(diff, 'more tab')}`;
     }
 
-    // Header
     $('tally').textContent = count;
     $('tally').parentElement.classList.toggle('zero', count === 0);
     $('summary').textContent = `${plural(tabs.length, 'tab')} open · ${plural(groups.length, 'duplicate group')}`;
 
-    // Preview banner
-    const banner = $('previewBanner');
-    banner.hidden = !preview;
-    document.body.classList.toggle('previewing', !!preview);
-    if (preview) {
-        const diff = count - baseCount;
-        const verb = options[preview] ? 'Turning off' : 'Turning on';
-        banner.textContent = `Preview: ${verb} “${RULES[preview]}” → ` +
-            (diff > 0 ? `${plural(diff, 'more tab')} to close` : diff < 0 ? `${plural(-diff, 'fewer tab')} to close` : 'no change');
-    }
-
-    // List
-    $('groups').replaceChildren(...groups.map(g => groupNode(g, shownOptions, baseCloseIds)));
+    $('groups').replaceChildren(...groups.map(groupNode));
     $('empty').hidden = groups.length > 0;
     $('emptyHint').textContent = tabs.length ? 'Every open tab is unique.' : '';
 
-    // Footer
     const closeAll = $('closeAll');
-    closeAll.disabled = count === 0 || !!preview;
+    closeAll.disabled = count === 0;
     closeAll.textContent = count ? `Close ${plural(count, 'duplicate tab')}` : 'Nothing to close';
+
+    if (state.preview) drawPeek();
+}
+
+// Floating "what if" card for the hovered rule. Overlays the list, so nothing underneath moves.
+const PEEK_ROWS = 5;
+function drawPeek() {
+    const { tabs, options, preview } = state;
+    const peek = $('peek');
+    if (!preview) { peek.classList.remove('open'); return; }
+
+    const flipped = { ...options, [preview]: !options[preview] };
+    const closeMap = groups => new Map(groups.flatMap(g => g.close.map(t => [t.id, { tab: t, keep: g.keep }])));
+    const before = closeMap(findDuplicateGroups(tabs, options));
+    const after = closeMap(findDuplicateGroups(tabs, flipped));
+    const added = [...after.values()].filter(x => !before.has(x.tab.id));
+    const removed = [...before.values()].filter(x => !after.has(x.tab.id));
+    const turningOn = !options[preview];
+
+    const head = el('div', 'peek-head');
+    const num = added.length - removed.length;
+    head.append(
+        el('span', 'peek-num' + (num < 0 ? ' minus' : ''), num > 0 ? `+${num}` : num < 0 ? `−${-num}` : '0'),
+        el('span', 'peek-text', (added.length ? `${added.length === 1 ? 'tab' : 'tabs'} would close`
+            : removed.length ? `${removed.length === 1 ? 'tab' : 'tabs'} would stay open` : 'No tabs affected')
+            + ` if you turn ${turningOn ? 'on' : 'off'} “${RULES[preview]}”`),
+    );
+
+    const list = el('ul', 'peek-rows');
+    const items = [...added.map(x => ['✕', x, flipped]), ...removed.map(x => ['↺', x, options])];
+    for (const [mark, { tab, keep }, opts] of items.slice(0, PEEK_ROWS)) {
+        const li = el('li', mark === '✕' ? 'add' : 'remove');
+        const same = el('span', 'peek-same', `same as ${keep.url.replace(/^https?:\/\/(www\.)?/, '')}`);
+        li.append(el('span', 'mark', mark), urlNode(tab.url, opts), same);
+        list.append(li);
+    }
+    if (items.length > PEEK_ROWS) list.append(el('li', 'peek-more', `+${items.length - PEEK_ROWS} more`));
+
+    peek.replaceChildren(head, list);
+    peek.classList.add('open');
 }
 
 // ---------- data ----------
@@ -214,8 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hover or keyboard focus previews the effect of flipping the rule.
         // After a flip, hold off previewing until the pointer/focus leaves, so the list shows the committed result.
         let armed = true;
-        const start = () => { if (armed && state.preview !== name) { state.preview = name; draw(); } };
-        const stop = () => { armed = true; if (state.preview === name) { state.preview = null; draw(); } };
+        const start = () => { if (armed && state.preview !== name) { state.preview = name; drawPeek(); } };
+        const stop = () => { armed = true; if (state.preview === name) { state.preview = null; drawPeek(); } };
         rule.addEventListener('mouseenter', start);
         rule.addEventListener('mouseleave', stop);
         box.addEventListener('focus', start);
@@ -225,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try { localStorage.setItem(name, box.checked ? '1' : '0'); } catch {}
             armed = false;
             state.preview = null;
+            drawPeek();
             draw();
         });
     }
