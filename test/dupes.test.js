@@ -235,3 +235,10 @@ test('splitUrl: marks trailing slash and site-specific params', () => {
     assert.strictEqual(ignored(splitUrl('https://medium.com/p?source=x', o)), '?source=x');
     assert.strictEqual(joined(splitUrl('https://a.com/docs/?id=1#h', o)), 'https://a.com/docs/?id=1#h');
 });
+
+test('ignoreTracking: Google junk rule applies only to /search, not other Google pages', () => {
+    differ('https://docs.google.com/document/d/1/edit?source=x', 'https://docs.google.com/document/d/1/edit');
+    differ('https://www.google.com/maps?client=x', 'https://www.google.com/maps');
+    same('https://www.google.com/search?q=cats&ei=1', 'https://www.google.com/search?q=cats');
+    assert.strictEqual(ignored(splitUrl('https://docs.google.com/d?source=x', { ignoreTracking: true })), '');
+});

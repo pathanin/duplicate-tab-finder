@@ -8,18 +8,18 @@ const TRACKING_PARAM = new RegExp('^(' + [
     'mc_cid', 'mc_eid', '_hsenc', '_hsmi', 'mkt_tok', 'oly_enc_id', 'oly_anon_id', 'vero_id',
     'pk_.*', 'mtm_.*', 's_cid',
 ].join('|') + ')$', 'i');
-// Params that are junk only on specific sites, since the same names mean real things elsewhere.
+// Params that are junk only on specific sites (optionally a path), since the same names mean real things elsewhere.
 const SITE_PARAMS = [
     [/(^|\.)(youtube\.com|youtu\.be)$/i, /^(t|si)$/],                       // timestamp, share tag
     [/(^|\.)spotify\.com$/i, /^si$/],
     [/(^|\.)(x|twitter)\.com$/i, /^(s|t)$/],
     [/(^|\.)medium\.com$/i, /^source$/],
     // Google Search session state. Keeps q and result filters (tbm, tbs, udm, start, hl).
-    [/(^|\.)google\.[a-z.]+$/i, /^(ei|ved|sxsrf|sca_esv|oq|gs_l\w*|sclient|uact|aqs|sourceid|client|ie|rlz|biw|bih|dpr|iflsig|fbs|lei|sei|sa|source|prmd)$/],
+    [/(^|\.)google\.[a-z.]+$/i, /^(ei|ved|sxsrf|sca_esv|oq|gs_l\w*|sclient|uact|aqs|sourceid|client|ie|rlz|biw|bih|dpr|iflsig|fbs|lei|sei|sa|source|prmd)$/, /^\/search$/],
 ];
 
-const isIgnoredParam = (host, key) =>
-    TRACKING_PARAM.test(key) || SITE_PARAMS.some(([h, p]) => h.test(host) && p.test(key));
+const isIgnoredParam = (u, key) => TRACKING_PARAM.test(key) ||
+    (!!u && SITE_PARAMS.some(([h, p, path]) => h.test(u.hostname) && p.test(key) && (!path || path.test(u.pathname))));
 const parse = url => { try { return new URL(url); } catch { return null; } };
 
 // Returns the key used to decide whether two URLs are duplicates.
@@ -30,7 +30,7 @@ function normalizeUrl(url, { ignoreHash = false, ignoreTracking = false } = {}) 
     if (ignoreHash) u.hash = '';
     if (ignoreTracking) {
         for (const key of [...u.searchParams.keys()]) {
-            if (isIgnoredParam(u.hostname, key)) u.searchParams.delete(key);
+            if (isIgnoredParam(u, key)) u.searchParams.delete(key);
         }
         u.searchParams.sort();
         if (!u.searchParams.size) u.search = '';
@@ -62,8 +62,7 @@ function splitUrl(url, { ignoreHash = false, ignoreTracking = false } = {}) {
 
     if (queryAt >= 0) {
         const tokens = base.slice(queryAt + 1).split('&');
-        const host = parsed ? parsed.hostname : '';
-        const isTracking = tok => ignoreTracking && isIgnoredParam(host, tok.split('=')[0]);
+        const isTracking = tok => ignoreTracking && isIgnoredParam(parsed, tok.split('=')[0]);
         push('?', tokens.every(isTracking));
         let keptBefore = false;
         tokens.forEach((tok, i) => {
