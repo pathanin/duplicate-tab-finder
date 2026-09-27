@@ -99,7 +99,7 @@ function draw() {
     for (const name of Object.keys(RULES)) {
         const diff = countClosing(findDuplicateGroups(tabs, { ...options, [name]: !options[name] })) - count;
         const delta = $(`${name}Delta`);
-        delta.textContent = !diff ? '' : options[name] ? `catching ${-diff}` : `+${diff} more`;
+        delta.textContent = !diff ? '' : options[name] ? `−${-diff}` : `+${diff}`;
         delta.title = !diff ? '' : options[name]
             ? `This rule is catching ${plural(-diff, 'tab')}`
             : `Turning this on would close ${plural(diff, 'more tab')}`;

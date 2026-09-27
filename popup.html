@@ -16,20 +16,15 @@
     </header>
 
     <section class="rules" aria-label="Matching rules">
-        <label class="rule">
-            <input type="checkbox" role="switch" id="ignoreHash" class="switch">
-            <span class="rule-text">
-                <span class="rule-name">Ignore <code>#fragments</code></span>
-                <span class="rule-hint">page#intro and page#setup count as the same</span>
-            </span>
+        <span class="rules-label">Ignore</span>
+        <label class="rule" title="page#intro and page#setup count as the same">
+            <input type="checkbox" role="switch" id="ignoreHash" class="switch" aria-label="Ignore #fragments">
+            <code>#fragments</code>
             <span class="delta" id="ignoreHashDelta"></span>
         </label>
-        <label class="rule">
-            <input type="checkbox" role="switch" id="ignoreTracking" class="switch">
-            <span class="rule-text">
-                <span class="rule-name">Ignore tracking params</span>
-                <span class="rule-hint"><code>utm_*</code>, <code>fbclid</code>, <code>gclid</code></span>
-            </span>
+        <label class="rule" title="utm_*, fbclid, gclid and other tracking junk">
+            <input type="checkbox" role="switch" id="ignoreTracking" class="switch" aria-label="Ignore tracking params">
+            tracking params
             <span class="delta" id="ignoreTrackingDelta"></span>
         </label>
         <div id="peek" class="peek" role="status" aria-live="polite"></div>
