@@ -5,32 +5,32 @@
 <title>Store stage</title>
 <style>
 :root {
-    --bg: #f6efe6;
-    --blob: #efe2d1;
-    --ink: #2b2420;
-    --muted: #6f645b;
-    --em: #c2410c;
-    --brand: #9a5b2a;
-    --chrome: #e7e0d7;
-    --chrome-line: #d8cfc4;
-    --tab-ink: #5b524a;
+    --bg: #f3f3f1;
+    --ink: #1b1b1a;
+    --muted: #6e6d69;
+    --em: #d7372b;
+    --brand: #1b1b1a;
+    --chrome: #e4e3df;
+    --chrome-line: #d3d2cd;
+    --tab-ink: #55544f;
     --page: #ffffff;
-    --skel: #f1ebe4;
-    --omni: #f3eee8;
+    --skel: #f1f0ed;
+    --omni: #efeeeb;
+    --line: #e7e6e3;
 }
 body.dark {
-    --bg: #161311;
-    --blob: #221c18;
-    --ink: #f1ebe4;
-    --muted: #a39a91;
-    --em: #ea7a4b;
-    --brand: #d4a373;
-    --chrome: #2a2521;
-    --chrome-line: #3a332e;
-    --tab-ink: #b9afa6;
-    --page: #1f1b18;
-    --skel: #2a2521;
-    --omni: #2a2521;
+    --bg: #0f0f0e;
+    --ink: #eeede9;
+    --muted: #9d9c97;
+    --em: #ff6b5c;
+    --brand: #eeede9;
+    --chrome: #232321;
+    --chrome-line: #333331;
+    --tab-ink: #b0afaa;
+    --page: #171716;
+    --skel: #222220;
+    --omni: #242422;
+    --line: #2e2e2c;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -41,15 +41,10 @@ body {
     overflow: hidden;
 }
 #canvas { position: relative; overflow: hidden; background: var(--bg); }
-.blob {
-    position: absolute;
-    border-radius: 50%;
-    background: var(--blob);
-}
 
 /* Copy */
 .copy { position: absolute; }
-.eyebrow { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; color: var(--brand); margin: 0 0 22px; }
+.eyebrow { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; color: var(--brand); margin: 0 0 22px; }
 .eyebrow img { width: 30px; height: 30px; }
 h1 { margin: 0; font-size: 46px; line-height: 1.06; font-weight: 800; letter-spacing: -0.028em; text-wrap: balance; }
 h1 em { font-style: normal; color: var(--em); }
@@ -60,7 +55,7 @@ h1 em { font-style: normal; color: var(--em); }
     position: absolute;
     border-radius: 12px 12px 0 0;
     background: var(--page);
-    box-shadow: 0 30px 80px rgb(60 40 20 / .18), 0 0 0 1px rgb(60 40 20 / .08);
+    box-shadow: 0 24px 64px rgb(0 0 0 / .12), 0 0 0 1px rgb(0 0 0 / .08);
     overflow: hidden;
 }
 body.dark .browser { box-shadow: 0 30px 80px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 255 255 / .06); }
@@ -157,7 +152,7 @@ body.dark .browser { box-shadow: 0 30px 80px rgb(0 0 0 / .5), 0 0 0 1px rgb(255 
     transform: scale(var(--pscale, 1));
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 16px 44px rgb(40 25 10 / .24), 0 0 0 1px rgb(0 0 0 / .07);
+    box-shadow: 0 12px 36px rgb(0 0 0 / .18), 0 0 0 1px rgb(0 0 0 / .08);
     transition: opacity .22s, transform .22s cubic-bezier(.2,.8,.2,1);
 }
 body.dark .popup-wrap { box-shadow: 0 16px 44px rgb(0 0 0 / .55), 0 0 0 1px rgb(255 255 255 / .08); }
@@ -206,7 +201,7 @@ body.dark .popup-wrap { box-shadow: 0 16px 44px rgb(0 0 0 / .55), 0 0 0 1px rgb(
 #endcard img { width: 132px; height: 132px; }
 #endcard h2 { margin: 18px 0 6px; font-size: 48px; font-weight: 800; letter-spacing: -0.03em; }
 #endcard p { margin: 0; font-size: 22px; color: var(--muted); }
-#endcard small { margin-top: 26px; font-size: 16px; color: var(--brand); font-weight: 700; }
+#endcard small { margin-top: 26px; font-size: 16px; color: var(--muted); font-weight: 600; }
 
 /* Small promo tile */
 .tile { position: absolute; inset: 0; padding: 34px 32px; display: flex; flex-direction: column; justify-content: space-between; }
@@ -217,8 +212,8 @@ body.dark .popup-wrap { box-shadow: 0 16px 44px rgb(0 0 0 / .55), 0 0 0 1px rgb(
 .minitabs { display: flex; gap: 6px; }
 .minitabs div {
     flex: 1; display: flex; align-items: center; gap: 7px;
-    background: #fff; border-radius: 9px; padding: 9px 10px;
-    font-size: 13px; font-weight: 600; box-shadow: 0 1px 0 rgb(60 40 20 / .08), 0 4px 14px rgb(60 40 20 / .08);
+    background: var(--page); border-radius: 6px; padding: 9px 10px;
+    font-size: 13px; font-weight: 600; border: 1px solid var(--line);
 }
 .minitabs img { width: 16px; height: 16px; border-radius: 3px; }
 .minitabs .gone { opacity: .5; }
@@ -316,7 +311,6 @@ function buildCopy({ left, width, eyebrow = true }) {
 }
 
 if (shot.layout === 'tile') {
-    place(h('<div class="blob"></div>'), { width: '360px', height: '360px', right: '-120px', top: '-170px' });
     const icon = c => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="${c}"/><text x="16" y="22" font-family="system-ui" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">D</text></svg>`)}`;
     const fav = `<img src="${icon('#3b6ea8')}" alt="">`;
     place(h(`
@@ -331,23 +325,19 @@ if (shot.layout === 'tile') {
         </div>`), {});
     window.__ready = true;
 } else if (video) {
-    place(h('<div class="blob"></div>'), { width: '900px', height: '900px', left: '-260px', top: '240px' });
     buildBrowser({ left: 70, top: 92, width: 1140, height: 660, pscale: 0.9 });
     place(h('<div id="caption"></div>'), {});
     place(h(`<div id="cursor"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M4 2l15 11.5-6.6.9 3.9 7.3-2.9 1.5-3.9-7.4L4 20.5z" fill="#fff" stroke="#1d1a17" stroke-width="1.5" stroke-linejoin="round"/></svg></div>`), {});
     place(h(`<div id="endcard"><img src="/icons/icon128.png" alt=""><h2>Duplicate Tab Finder</h2><p>Close duplicate tabs — safely.</p><small>Free for Chrome and Firefox</small></div>`), {});
 } else if (shot.layout === 'marquee') {
-    place(h('<div class="blob"></div>'), { width: '700px', height: '700px', left: '-200px', top: '120px' });
     buildCopy({ left: 72, width: 470 });
     buildBrowser({ left: 610, top: 36, width: 740, height: 560, pscale: 0.68 });
 } else if (shot.layout === 'detail') {
-    place(h('<div class="blob"></div>'), { width: '820px', height: '820px', left: '-300px', top: '330px' });
     buildCopy({ left: 64, width: shot.copyWidth });
     wrap = place(h('<div class="popup-wrap" style="--pscale:1.2"><iframe title="popup"></iframe></div>'),
         { left: '430px', top: '44px', right: 'auto', transformOrigin: 'top left' });
     iframe = wrap.querySelector('iframe');
 } else {
-    place(h('<div class="blob"></div>'), { width: '820px', height: '820px', left: '-300px', top: '330px' });
     buildCopy({ left: 64, width: shot.copyWidth || 400 });
     buildBrowser({ left: 500, top: 64, width: 740, height: 800, pscale: 1 });
 }
