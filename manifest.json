@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Duplicate Tab Finder",
-  "version": "1.2",
+  "version": "1.1",
   "description": "Finds and closes duplicate tabs to clean up your browser's tabs.",
   "permissions": [
     "tabs"
