@@ -47,7 +47,7 @@ const favicon = tab => {
     return img;
 };
 
-const MARKS = { keep: '●', close: '✕', pinned: '📌' };
+const MARKS = { keep: '●', close: '✕', pinned: '◆' };
 
 const rowNode = (tab, stateName, windowLabel) => {
     const btn = el('button', 'row');
