@@ -21,4 +21,4 @@ cd store-assets && npm i && npm run render # regenerate store screenshots/video
 
 ## License
 
-MIT
+[MIT](LICENSE) © Pathanin Lokbow
