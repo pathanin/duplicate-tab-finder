@@ -15,7 +15,6 @@ Load the folder as an unpacked extension (`chrome://extensions` → Developer mo
 
 ```sh
 node --test test/                          # run tests
-./release.sh                               # test, zip, publish to Chrome Web Store (needs .env)
 cd store-assets && npm i && npm run render # regenerate store screenshots/video
 ```
 
