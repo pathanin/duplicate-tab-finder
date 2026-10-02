@@ -18,3 +18,7 @@ node --test test/                          # run tests
 ./release.sh                               # test, zip, publish to Chrome Web Store (needs .env)
 cd store-assets && npm i && npm run render # regenerate store screenshots/video
 ```
+
+## License
+
+MIT
