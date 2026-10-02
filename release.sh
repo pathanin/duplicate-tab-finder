@@ -8,4 +8,4 @@ cd "$(dirname "$0")"
 node --test test/
 rm -f duplicate-tab-finder.zip
 zip -q duplicate-tab-finder.zip manifest.json popup.html popup.css popup.js dupes.js icons/icon16.png icons/icon48.png icons/icon128.png
-npx -y chrome-webstore-upload-cli upload --source duplicate-tab-finder.zip --auto-publish
+npx -y chrome-webstore-upload-cli@4 --source duplicate-tab-finder.zip
