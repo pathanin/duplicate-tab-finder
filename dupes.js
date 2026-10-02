@@ -14,6 +14,7 @@ const SITE_PARAMS = [
     [/(^|\.)spotify\.com$/i, /^si$/],
     [/(^|\.)(x|twitter)\.com$/i, /^(s|t)$/],
     [/(^|\.)medium\.com$/i, /^source$/],
+    [/(^|\.)atlassian\.net$/i, /^(actionerId|sourceType|atlOrigin)$/],   // Jira/Confluence notification links
     // Google Search session state. Keeps q and result filters (tbm, tbs, udm, start, hl).
     [/(^|\.)google\.[a-z.]+$/i, /^(ei|ved|sxsrf|sca_esv|oq|gs_l\w*|sclient|uact|aqs|sourceid|client|ie|rlz|biw|bih|dpr|iflsig|fbs|lei|sei|sa|source|prmd)$/, /^\/search$/],
 ];

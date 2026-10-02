@@ -242,3 +242,11 @@ test('ignoreTracking: Google junk rule applies only to /search, not other Google
     same('https://www.google.com/search?q=cats&ei=1', 'https://www.google.com/search?q=cats');
     assert.strictEqual(ignored(splitUrl('https://docs.google.com/d?source=x', { ignoreTracking: true })), '');
 });
+
+test('normalizeUrl: ignoreTracking strips Jira notification params on atlassian.net only', () => {
+    const o = { ignoreTracking: true };
+    assert.strictEqual(
+        normalizeUrl('https://x.atlassian.net/browse/A-1?actionerId=557058%3Af5&sourceType=assign&atlOrigin=abc', o),
+        'https://x.atlassian.net/browse/A-1');
+    assert.strictEqual(normalizeUrl('https://a.com/?sourceType=x', o), 'https://a.com/?sourceType=x');
+});
