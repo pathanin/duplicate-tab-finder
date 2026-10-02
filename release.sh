@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds the extension zip and publishes it to the Chrome Web Store.
-# Needs EXTENSION_ID, CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN (env or a git-ignored .env).
+# Needs EXTENSION_ID, PUBLISHER_ID, CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN (env or a git-ignored .env).
 # Bump "version" in manifest.json first; the store rejects a version that isn't higher.
 set -e
 cd "$(dirname "$0")"
